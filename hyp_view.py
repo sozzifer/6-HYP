@@ -1,26 +1,13 @@
 from dash import Dash, html, dcc
 import dash_bootstrap_components as dbc
-import plotly.graph_objects as go
-from hyp_model import antacid
+from hyp_model import antacid, create_blank_fig
 
 app = Dash(__name__,
-           title="1-sample Hypothesis Testing",
+           title="One-sample Hypothesis Testing",
            update_title=None,
            external_stylesheets=[dbc.themes.BOOTSTRAP],
            meta_tags=[{"name": "viewport",
                        "content": "width=device-width, initial-scale=1.0, maximum-scale=1.0"}])
-
-blank_fig = go.Figure(go.Histogram(x=antacid,
-                                   xbins={"start": 3, "end": 17, "size": 2},
-                                   name="Time to take<br>effect (mins)",
-                                   hovertemplate="Time (mins): %{x}" + "<br>Count: %{y}<extra></extra>",
-                                   marker_line_color="rgba(158,171,5,1)",
-                                   marker_color="rgba(158,171,5,0.5)",
-                                   marker_line_width=1,
-                                   showlegend=True),
-                      layout={"margin": dict(t=20, b=10, l=20, r=20),
-                              "height": 400,
-                              "font_size": 14})
 
 app.layout = dbc.Container([
     dbc.Row([
@@ -32,14 +19,13 @@ app.layout = dbc.Container([
                 dbc.Select(id="dropdown",
                            options=[{"label": "Antacid", "value": "antacid"},
                                     {"label": "Grades", "value": "grades"},
-                                    {"label": "RDA", "value": "rda"}
-                                    ],
+                                    {"label": "RDA", "value": "rda"}],
                            value="antacid"),
                 html.Br()
             ], **{"aria-live": "polite"}),
             dbc.Label("Data description", className="label"),
             html.P(id="data-text", **{"aria-live": "polite"})
-        ], xs=12, sm=12, md=12, lg=12, xl=6),
+        ], xs=12, xl=6),
         dbc.Col([
             html.Div([
                 dbc.Label("Alternative hypothesis",
@@ -83,13 +69,13 @@ app.layout = dbc.Container([
                            class_name="button",
                            style={"width": 150})
             ], className="d-flex justify-content-center"),
-        ], xs=12, sm=12, md=12, lg=12, xl=6)
+        ], xs=12, xl=6)
     ]),
     dbc.Row([
         dbc.Col([
             html.Div([
                 dcc.Graph(id="graph",
-                          figure=blank_fig,
+                          figure=create_blank_fig(),
                           config={"displayModeBar": False,
                                   "doubleClick": False,
                                   "editable": False,
@@ -101,7 +87,7 @@ app.layout = dbc.Container([
                      className="sr-only",
                      **{"aria-live": "polite"}),
             html.Br()
-        ], xs=12, sm=12, md=12, lg=6, xl=6),
+        ], xs=12, lg=6),
         dbc.Col([
             dbc.Card([
                 dbc.CardBody([
@@ -132,17 +118,18 @@ app.layout = dbc.Container([
                         html.Br(),
                         html.P(
                             "Based on the results above, should you accept or reject the null hypothesis?", className="bold-p"),
-                        dcc.Dropdown(id="accept-reject",
-                                        options=[{"label": "Accept the null hypothesis", "value": "accept"},
-                                                 {"label": "Reject the null hypothesis",
-                                                     "value": "reject"}
-                                                ],
-                                        value=None),
+                        dbc.Select(id="accept-reject",
+                                   options=[
+                                        {"label": "Accept the null hypothesis",
+                                         "value": "accept"},
+                                        {"label": "Reject the null hypothesis",
+                                         "value": "reject"}],
+                                   value=None),
                         html.Br(),
                         html.P(id="conclusion", children=[])
                     ], id="results", style={"display": "none"}, **{"aria-live": "polite"}),
                 ])
             ])
-        ], xs=12, sm=12, md=12, lg=6, xl=6)
+        ], xs=12, lg=6)
     ])
 ], fluid=True)

@@ -13,6 +13,22 @@ grades = df_grades["grades"].tolist()
 alt_dict = {"<": "less", ">": "greater", "!=": "two-sided"}
 
 
+def create_blank_fig():
+    blank_fig = go.Figure(go.Histogram(x=antacid,
+                                   xbins={"start": 3, "end": 17, "size": 2},
+                                   name="Time to take<br>effect (mins)",
+                                   hovertemplate="Time (mins): %{x}" + "<br>Count: %{y}<extra></extra>",
+                                   marker_line_color="rgba(158,171,5,1)",
+                                   marker_color="rgba(158,171,5,0.5)",
+                                   marker_line_width=1,
+                                   showlegend=True),
+                      layout={"margin": dict(t=20, b=10, l=20, r=20),
+                              "height": 400,
+                              "font_size": 14})
+    blank_fig.update_layout(dragmode=False)
+    return blank_fig
+
+
 def add_ci_traces_lt(fig, start, ci_upper, hyp_mean):
     fig.add_trace(go.Scatter(x=np.linspace(start, ci_upper, 100),
                              y=[0.5]*100,
