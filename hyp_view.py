@@ -1,7 +1,8 @@
 from dash import Dash, html, dcc
 import dash_bootstrap_components as dbc
-from hyp_model import antacid, create_blank_fig
+from hyp_model import create_blank_fig
 
+# Specify HTML <head> elements
 app = Dash(__name__,
            title="One-sample Hypothesis Testing",
            update_title=None,
@@ -9,7 +10,10 @@ app = Dash(__name__,
            meta_tags=[{"name": "viewport",
                        "content": "width=device-width, initial-scale=1.0, maximum-scale=1.0"}])
 
+# Specify app layout (HTML <body> elements) using dash.html, dash.dcc and dash_bootstrap_components
+# All component IDs should relate to the Input or Output of callback functions in *_controller.py
 app.layout = dbc.Container([
+    # Row - User Input
     dbc.Row([
         dbc.Col([
             html.Div([
@@ -22,20 +26,25 @@ app.layout = dbc.Container([
                                     {"label": "RDA", "value": "rda"}],
                            value="antacid"),
                 html.Br()
-            ], **{"aria-live": "polite"}),
-            dbc.Label("Data description", className="label"),
-            html.P(id="data-text", **{"aria-live": "polite"})
+            ], **{"aria-live": "polite", "aria-atomic": "true"}),
+            html.Div([
+                dbc.Label("Data description", className="label"),
+                html.P(id="data-text")
+            ], **{"aria-live": "polite", "aria-atomic": "true"}),
         ], xs=12, xl=6),
         dbc.Col([
             html.Div([
                 dbc.Label("Alternative hypothesis",
                           className="label",
-                          html_for="alt-hyp-radio"),
-                dbc.Select(id="alt-hyp-radio",
+                          html_for="alt-hyp-dropdown"),
+                dbc.Select(id="alt-hyp-dropdown",
                            options=[
-                               {"label": u"Population mean \u2260 hypothesised mean (two-sided)", "value": "!="},
-                               {"label": "Population mean < hypothesised mean (one-sided)", "value": "<"},
-                               {"label": "Population mean > hypothesised mean (one-sided)", "value": ">"}],
+                               {"label": u"Population mean \u2260 hypothesised mean (two-sided)",
+                                "value": "!="},
+                               {"label": "Population mean < hypothesised mean (one-sided)",
+                                "value": "<"},
+                               {"label": "Population mean > hypothesised mean (one-sided)",
+                                "value": ">"}],
                            value="!=")
             ], **{"aria-live": "polite"}),
             html.Div([
@@ -47,7 +56,7 @@ app.layout = dbc.Container([
                            min=3,
                            max=17,
                            step=1)
-            ], **{"aria-live": "polite"}),
+            ], **{"aria-live": "polite", "aria-atomic": "true"}),
             html.Div([
                 dbc.Label("Confidence level",
                           className="label",
@@ -71,8 +80,10 @@ app.layout = dbc.Container([
             ], className="d-flex justify-content-center"),
         ], xs=12, xl=6)
     ]),
+    # Row - Graph and Results
     dbc.Row([
         dbc.Col([
+            # Graph components are placed inside a Div with role="img" to manage UX for screen reader users
             html.Div([
                 dcc.Graph(id="graph",
                           figure=create_blank_fig(),
@@ -81,7 +92,8 @@ app.layout = dbc.Container([
                                   "editable": False,
                                   "scrollZoom": False,
                                   "showAxisDragHandles": False})
-            ], role="img", style={"margin": "10px"}),
+            ], role="img", style={"margin": "10px"}, **{"aria-hidden": "true"}),
+            # A second Div is used to associate alt text with the relevant Graph component to manage the experience for screen reader users, styled using CSS class sr-only
             html.Div(id="sr-hist",
                      children=[],
                      className="sr-only",
@@ -91,27 +103,19 @@ app.layout = dbc.Container([
         dbc.Col([
             dbc.Card([
                 dbc.CardBody([
-                    html.H4("Results", style={"text-align": "center"}),
                     html.Div([
+                        html.H4("Results", style={"text-align": "center"}),
                         html.P("Null hypothesis", className="bold-p"),
                         html.P(id="null-hyp"),
                         html.P("Alternative hypothesis", className="bold-p"),
                         html.P(id="alt-hyp"),
                         html.Br(),
-                        # html.P(children=[
-                        #     html.Span("Sample mean: ", className="bold-p"),
-                        #     html.Span(id="sample-mean")
-                        # ]),
-                        # html.P(children=[
-                        #     html.Span("Test statistic: ", className="bold-p"),
-                        #     html.Span(id="t-stat")
-                        # ]),
-                        html.P(children=[
+                        html.P([
                             html.Span("P value: ", className="bold-p"),
                             html.Span(id="p-value"),
                             dcc.Store(id="p-store")
                         ]),
-                        html.P(children=[
+                        html.P([
                             html.Span(id="conf-text", className="bold-p"),
                             html.Span(id="conf-val")
                         ]),
@@ -127,7 +131,7 @@ app.layout = dbc.Container([
                                    value=None),
                         html.Br(),
                         html.P(id="conclusion", children=[])
-                    ], id="results", style={"display": "none"}, **{"aria-live": "polite"}),
+                    ], id="results", style={"display": "none"}, **{"aria-live": "polite", "aria-atomic": "true"}),
                 ])
             ])
         ], xs=12, lg=6)

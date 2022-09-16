@@ -1,18 +1,119 @@
 from dash import html, Input, Output, State, exceptions
 import plotly.graph_objects as go
 import numpy as np
-import scipy.stats as stat
-from hyp_model import antacid, grades, rda, alt_dict, add_ci_traces_lt, add_ci_traces_gt, add_ci_traces_eq
+from hyp_model import antacid, grades, rda, update_statistics, t_test_1sided, t_test_2sided
 from hyp_view import app
 
 
+# Add confidence interval lines and hypothesised mean location to graph for hypothesised mean < population mean
+def add_ci_traces_lt(fig, start, ci_upper, hyp_mean):
+    fig.add_trace(go.Scatter(x=np.linspace(start, ci_upper, 100),
+                             y=[0.5]*100,
+                             name="Confidence<br>interval",
+                             hoverinfo="skip",
+                             marker_color="#d10373"))
+    fig.add_trace(go.Scatter(x=[start],
+                             y=[0.5],
+                             hoverinfo="skip",
+                             marker_symbol="arrow-left",
+                             marker_color="#d10373",
+                             marker_size=14,
+                             showlegend=False)),
+    fig.add_trace(go.Scatter(x=[ci_upper],
+                             y=[0.5],
+                             mode="markers",
+                             hoverinfo="skip",
+                             marker_symbol="line-ns",
+                             marker_line_width=2,
+                             marker_line_color="#d10373",
+                             marker_size=12,
+                             showlegend=False)),
+    fig.add_trace(go.Scatter(x=[hyp_mean],
+                             y=[0.5],
+                             name="Hypothesised<br>mean",
+                             mode="markers",
+                             hovertemplate="Hypothesised mean: %{x}<extra></extra>",
+                             marker_symbol="circle-x-open",
+                             marker_color="#d10373",
+                             marker_size=16))
+
+
+# Add confidence interval lines and hypothesised mean location to graph for hypothesised mean > population mean
+def add_ci_traces_gt(fig, end, ci_lower, hyp_mean):
+    fig.add_trace(go.Scatter(x=np.linspace(ci_lower, end, 100),
+                             y=[0.5]*100,
+                             name="Confidence<br>interval",
+                             hoverinfo="skip",
+                             marker_color="#d10373"))
+    fig.add_trace(go.Scatter(x=[end],
+                             y=[0.5],
+                             hoverinfo="skip",
+                             marker_symbol="arrow-right",
+                             marker_color="#d10373",
+                             marker_size=14,
+                             showlegend=False)),
+    fig.add_trace(go.Scatter(x=[ci_lower],
+                             y=[0.5],
+                             mode="markers",
+                             hoverinfo="skip",
+                             marker_symbol="line-ns",
+                             marker_line_width=2,
+                             marker_line_color="#d10373",
+                             marker_size=12,
+                             showlegend=False)),
+    fig.add_trace(go.Scatter(x=[hyp_mean],
+                             y=[0.5],
+                             name="Hypothesised<br>mean",
+                             mode="markers",
+                             hovertemplate="Hypothesised mean: %{x}<extra></extra>",
+                             marker_symbol="circle-x-open",
+                             marker_color="#d10373",
+                             marker_size=16))
+
+
+# Add confidence interval lines and hypothesised mean location to graph for hypothesised mean = population mean
+def add_ci_traces_eq(fig, ci_lower, ci_upper, hyp_mean):
+    fig.add_trace(go.Scatter(x=[ci_lower, ci_upper],
+                             y=[0.5, 0.5],
+                             hoverinfo="skip",
+                             name="Confidence<br>interval",
+                             mode="lines",
+                             marker_color="#d10373"))
+    fig.add_trace(go.Scatter(x=[ci_lower],
+                             y=[0.5],
+                             mode="markers",
+                             hoverinfo="skip",
+                             marker_symbol="line-ns",
+                             marker_line_width=2,
+                             marker_line_color="#d10373",
+                             marker_size=12,
+                             showlegend=False)),
+    fig.add_trace(go.Scatter(x=[ci_upper],
+                             y=[0.5],
+                             mode="markers",
+                             hoverinfo="skip",
+                             marker_symbol="line-ns",
+                             marker_line_width=2,
+                             marker_line_color="#d10373",
+                             marker_size=12,
+                             showlegend=False)),
+    fig.add_trace(go.Scatter(x=[hyp_mean],
+                             y=[0.5],
+                             name="Hypothesised<br>mean",
+                             mode="markers",
+                             hovertemplate="Hypothesised mean: %{x}<extra></extra>",
+                             marker_symbol="circle-x-open",
+                             marker_color="#d10373",
+                             marker_size=16))
+
+# Callback function to update graph and screen reader text for selected dataset and user entry for hypothesised mean, alternative hypothesis and confidence level (alpha)
 @app.callback(
     Output("graph", "figure"),
     Output("sr-hist", "children"),
     Input("submit", "n_clicks"),
     State("dropdown", "value"),
     State("hyp-mean", "value"),
-    State("alt-hyp-radio", "value"),
+    State("alt-hyp-dropdown", "value"),
     State("alpha", "value"),
     prevent_initial_call=True
 )
@@ -20,117 +121,114 @@ def update_histogram(n_clicks, dataset, hyp_mean, alternative, alpha):
     if n_clicks is None:
         raise exceptions.PreventUpdate
     else:
-        fig = go.Figure(layout={"margin": dict(t=20, b=10, l=20, r=20),
-                                "height": 400,
-                                "font_size": 14})
-        fig.update_layout(dragmode=False)
         if dataset == "antacid":
+            # Bins and x-axis start/end, bin size
+            start = 3
+            end = 17
+            size = 2
+            fig, conf_int = update_statistics(antacid, alternative, alpha)
+            fig.update_layout(margin=dict(t=20, b=10, l=20, r=20),
+                              height=400,
+                              font_size=14,
+                              dragmode=False)
             fig.add_trace(go.Histogram(x=antacid,
-                                       xbins={"start": 3, "end": 17, "size": 2},
+                                       xbins={"start": start, "end": end, "size": size},
                                        name="Time to take<br>effect (mins)",
                                        hovertemplate="Time (mins): %{x}" + "<br>Count: %{y}<extra></extra>",
                                        marker_line_color="rgba(158,171,5,1)",
                                        marker_color="rgba(158,171,5,0.5)",
                                        marker_line_width=1))
-            fig.update_xaxes(range=[3, 17])
-            sr_text = "Histogram of times for relief for new antacid tablet"
-            mean = np.mean(antacid)
-            sem = stat.sem(antacid)
-            nu = len(antacid) - 1
-            if alternative == "<" or alternative == ">":
-                conf_int = stat.t.interval(df=nu,
-                                           confidence=alpha,
-                                           loc=mean,
-                                           scale=sem)
-                if alternative == "<":
-                    add_ci_traces_lt(fig, 3, conf_int[1], hyp_mean)
-                elif alternative == ">":
-                    add_ci_traces_gt(fig, 17, conf_int[0], hyp_mean)
-                return fig, sr_text
+            fig.update_xaxes(range=[start, end])
+            if alternative == "<":
+                add_ci_traces_lt(fig, start, conf_int[1], hyp_mean)
+                # Screen reader text
+                sr_text = f"Histogram of times for relief for new antacid tablet with upper bound for population mean of {conf_int[1]:.3f} and hypothesised mean of {hyp_mean}"
+            elif alternative == ">":
+                add_ci_traces_gt(fig, end, conf_int[0], hyp_mean)
+                # Screen reader text
+                sr_text = f"Histogram of times for relief for new antacid tablet with lower bound for population mean of {conf_int[0]:.3f} and hypothesised mean of {hyp_mean}"
             else:
-                conf_int = stat.t.interval(df=nu,
-                                           confidence=(2*alpha)-1,
-                                           loc=mean,
-                                           scale=sem)
                 add_ci_traces_eq(fig, conf_int[0], conf_int[1], hyp_mean)
-                return fig, sr_text
+                # Screen reader text
+                sr_text = f"Histogram of times for relief for new antacid tablet with confidence interval ({conf_int[0]:.3f}, {conf_int[1]:.3f}) and hypothesised mean of {hyp_mean}"
         elif dataset == "grades":
+            # Bins and x-axis start/end, bin size
+            start = 75
+            end = 100
+            size = 5
+            fig, conf_int = update_statistics(grades, alternative, alpha)
+            fig.update_layout(margin=dict(t=20, b=10, l=20, r=20),
+                              height=400,
+                              font_size=14,
+                              dragmode=False)
             fig.add_trace(go.Histogram(x=grades,
-                                       xbins={"start": 75, "end": 100, "size": 5},
+                                       xbins={"start": start, "end": end, "size": size},
                                        name="Grade",
                                        hovertemplate="Grade: %{x}" + "<br>Count: %{y}<extra></extra>",
                                        marker_line_color="rgba(158,171,5,1)",
                                        marker_color="rgba(158,171,5,0.5)",
                                        marker_line_width=1))
-            fig.update_xaxes(range=[75, 100])
-            sr_text = "Histogram of the grades of 30 students"
-            mean = np.mean(grades)
-            sem = stat.sem(grades)
-            nu = len(grades) - 1
-            if alternative == "<" or alternative == ">":
-                conf_int = stat.t.interval(df=nu,
-                                           alpha=alpha,
-                                           loc=mean,
-                                           scale=sem)
-                if alternative == "<":
-                    add_ci_traces_lt(fig, 75, conf_int[1], hyp_mean)
-                elif alternative == ">":
-                    add_ci_traces_gt(fig, 100, conf_int[0], hyp_mean)
-                return fig, sr_text
+            fig.update_xaxes(range=[start, end])
+            if alternative == "<":
+                add_ci_traces_lt(fig, start, conf_int[1], hyp_mean)
+                # Screen reader text
+                sr_text = f"Histogram of the grades of 30 students with upper bound for population mean of {conf_int[1]:.3f} and hypothesised mean of {hyp_mean}"
+            elif alternative == ">":
+                add_ci_traces_gt(fig, end, conf_int[0], hyp_mean)
+                # Screen reader text
+                sr_text = f"Histogram of the grades of 30 students with lower bound for population mean of {conf_int[0]:.3f} and hypothesised mean of {hyp_mean}"
             else:
-                conf_int = stat.t.interval(df=nu,
-                                           confidence=(2*alpha)-1,
-                                           loc=mean,
-                                           scale=sem)
                 add_ci_traces_eq(fig, conf_int[0], conf_int[1], hyp_mean)
-                return fig, sr_text
+                # Screen reader text
+                sr_text = f"Histogram of the grades of 30 students with confidence interval ({conf_int[0]:.3f}, {conf_int[1]:.3f}) and hypothesised mean of {hyp_mean}"
         elif dataset =="rda":
+            # Bins and x-axis start/end, bin size
+            start = 5
+            end = 21
+            size = 2
+            fig, conf_int = update_statistics(rda, alternative, alpha)
+            fig.update_layout(margin=dict(t=20, b=10, l=20, r=20),
+                              height=400,
+                              font_size=14,
+                              dragmode=False)
             fig.add_trace(go.Histogram(x=rda,
-                                       xbins={"start": 5, "end": 21, "size": 2},
+                                       xbins={"start": start, "end": end, "size": size},
                                        name="Daily iron<br>intake (mg)",
                                        hovertemplate="RDA (mg): %{x}" + "<br>Count: %{y}<extra></extra>",
                                        marker_line_color="rgba(158,171,5,1)",
                                        marker_color="rgba(158,171,5,0.5)",
                                        marker_line_width=1))
-            fig.update_xaxes(range=[5, 21])
-            sr_text = "Histogram of iron intake for 45 randomly selected females aged under 51"
-            mean = np.mean(rda)
-            sem = stat.sem(rda)
-            nu = len(rda) - 1
-            if alternative == "<" or alternative == ">":
-                conf_int = stat.t.interval(df=nu,
-                                           confidence=alpha,
-                                           loc=mean,
-                                           scale=sem)
-                if alternative == "<":
-                    add_ci_traces_lt(fig, 5, conf_int[1], hyp_mean)
-                elif alternative == ">":
-                    add_ci_traces_gt(fig, 21, conf_int[0], hyp_mean)
-                return fig, sr_text
+            fig.update_xaxes(range=[start, end])
+            if alternative == "<":
+                add_ci_traces_lt(fig, start, conf_int[1], hyp_mean)
+                # Screen reader text
+                sr_text = f"Histogram of iron intake for 45 randomly selected females aged under 51 with upper bound for population mean of {conf_int[1]:.3f} and hypothesised mean of {hyp_mean}"
+            elif alternative == ">":
+                add_ci_traces_gt(fig, end, conf_int[0], hyp_mean)
+                # Screen reader text
+                sr_text = f"Histogram of iron intake for 45 randomly selected females aged under 51 with lower bound for population mean of {conf_int[0]:.3f} and hypothesised mean of {hyp_mean}"
             else:
-                conf_int = stat.t.interval(df=nu,
-                                           confidence=(2*alpha)-1,
-                                           loc=mean,
-                                           scale=sem)
                 add_ci_traces_eq(fig, conf_int[0], conf_int[1], hyp_mean)
-                return fig, sr_text
+                # Screen reader text
+                sr_text = f"Histogram of iron intake for 45 randomly selected females aged under 51 with confidence interval ({conf_int[0]:.3f}, {conf_int[1]:.3f}) and hypothesised mean of {hyp_mean}"
+        return fig, sr_text
 
-
+# Callback function to generate natural language versions of the null/alternative hypothesis for the selected data set and display the p-value and confidence interval results
 @app.callback(
     Output("null-hyp", "children"),
     Output("alt-hyp", "children"),
-    # Output("sample-mean", "children"),
-    # Output("t-stat", "children"),
     Output("p-value", "children"),
     Output("p-store", "data"),
     Output("conf-text", "children"),
     Output("conf-val", "children"),
+    # Results hidden until callback triggered
     Output("results", "style"),
+    # Hide Conclusion feedback whenever callback triggered
     Output("accept-reject", "value"),
     Input("submit", "n_clicks"),
     State("dropdown", "value"),
     State("hyp-mean", "value"),
-    State("alt-hyp-radio", "value"),
+    State("alt-hyp-dropdown", "value"),
     State("alpha", "value"),
     prevent_initial_call=True
 )
@@ -138,92 +236,43 @@ def perform_t_test(n_clicks, dataset, hyp_mean, alternative, alpha):
     if n_clicks is None:
         raise exceptions.PreventUpdate
     else:
-        alt = alt_dict[alternative]
         if dataset == "antacid":
-            null_hyp = f"The actual mean time to relief for the new tablet is equal to the hypothesised mean ({hyp_mean} minutes)"
-            mean = np.mean(antacid)
-            sem = stat.sem(antacid)
-            nu = len(antacid) - 1
-            t, p = stat.ttest_1samp(a=antacid, popmean=hyp_mean, alternative=alt)
-            if alternative == "<" or alternative == ">":
-                conf_int = stat.t.interval(df=nu,
-                                           confidence=alpha,
-                                           loc=mean,
-                                           scale=sem)
-                if alternative == "<":
-                    conf_text = f"Upper bound for population mean: "
-                    conf_val = f"{conf_int[1]:.3f}"
-                    alt_hyp = f"The actual mean time to relief for the new tablet is less than the hypothesised mean ({hyp_mean} minutes)"
-                elif alternative == ">":
-                    conf_text = "Lower bound for population mean: "
-                    conf_val = f"{conf_int[0]:.3f}"
-                    alt_hyp = f"The actual mean time to relief for the new tablet is greater than the hypothesised mean ({hyp_mean} minutes)"
+            null_hyp = f"The actual mean time to relief for the new tablet is {hyp_mean} minutes"
+            if alternative == "<":
+                p, conf_text, conf_val = t_test_1sided(antacid, hyp_mean, "less", alpha)
+                alt_hyp = f"The actual mean time to relief for the new tablet is less than {hyp_mean} minutes"
+            elif alternative == ">":
+                p, conf_text, conf_val = t_test_1sided(antacid, hyp_mean, "greater", alpha)
+                alt_hyp = f"The actual mean time to relief for the new tablet is greater than {hyp_mean} minutes"
             else:
-                conf_int = stat.t.interval(df=nu,
-                                           confidence=(2*alpha)-1,
-                                           loc=mean,
-                                           scale=sem)
-                conf_text = "Confidence interval for population mean: "
-                conf_val = f"({conf_int[0]:.3f}, {conf_int[1]:.3f})"
-                alt_hyp = f"The actual mean time to relief for the new tablet is NOT equal to the hypothesised mean ({hyp_mean} minutes)"
+                p, conf_text, conf_val = t_test_2sided(antacid, hyp_mean, alpha)
+                alt_hyp = f"The actual mean time to relief for the new tablet is NOT equal to {hyp_mean} minutes"
         elif dataset == "grades":
-            null_hyp = f"The actual mean grade is equal to the hypothesised mean grade ({hyp_mean}%)"
-            mean = np.mean(grades)
-            sem = stat.sem(grades)
-            nu = len(grades) - 1
-            t, p = stat.ttest_1samp(
-                a=grades, popmean=hyp_mean, alternative=alt)
-            if alternative == "<" or alternative == ">":
-                conf_int = stat.t.interval(df=nu,
-                                           confidence=alpha,
-                                           loc=mean,
-                                           scale=sem)
-                if alternative == "<":
-                    conf_text = f"Upper bound for population mean: "
-                    conf_val = f"{conf_int[1]:.3f}"
-                    alt_hyp = f"The actual mean grade is less than the hypothesised mean grade ({hyp_mean}%)"
-                elif alternative == ">":
-                    conf_text = "Lower bound for population mean: "
-                    conf_val = f"{conf_int[0]:.3f}"
-                    alt_hyp = f"The actual mean grade is greater than the hypothesised mean grade ({hyp_mean}%)"
+            null_hyp = f"The actual mean grade is equal to {hyp_mean}"
+            if alternative == "<":
+                p, conf_text, conf_val = t_test_1sided(grades, hyp_mean, "less", alpha)
+                alt_hyp = f"The actual mean grade is less than {hyp_mean}"
+            elif alternative == ">":
+                p, conf_text, conf_val = t_test_1sided(grades, hyp_mean, "greater", alpha)
+                alt_hyp = f"The actual mean grade is greater than {hyp_mean}"
             else:
-                conf_int = stat.t.interval(df=nu,
-                                           confidence=(2*alpha)-1,
-                                           loc=mean,
-                                           scale=sem)
-                conf_text = "Confidence interval for population mean: "
-                conf_val = f"({conf_int[0]:.3f}, {conf_int[1]:.3f})"
-                alt_hyp = f"The actual mean grade is NOT equal to the hypothesised mean grade ({hyp_mean}%)"
+                p, conf_text, conf_val = t_test_2sided(grades, hyp_mean, alpha)
+                alt_hyp = f"The actual mean grade is NOT equal to {hyp_mean}"
         elif dataset == "rda":
-            null_hyp = f"The actual mean intake of iron is equal to the hypothesised mean intake ({hyp_mean} milligrams)"
-            mean = np.mean(rda)
-            sem = stat.sem(rda)
-            nu = len(rda) - 1
-            t, p = stat.ttest_1samp(a=rda, popmean=hyp_mean, alternative=alt)
-            if alternative == "<" or alternative == ">":
-                conf_int = stat.t.interval(df=nu,
-                                           confidence=alpha,
-                                           loc=mean,
-                                           scale=sem)
-                if alternative == "<":
-                    conf_text = f"Upper bound for population mean: "
-                    conf_val = f"{conf_int[1]:.3f}"
-                    alt_hyp = f"The actual mean intake of iron is less than the hypothesised mean intake ({hyp_mean} milligrams)"
-                elif alternative == ">":
-                    conf_text = "Lower bound for population mean: "
-                    conf_val = f"{conf_int[0]:.3f}"
-                    alt_hyp = f"The actual mean intake of iron is greater than the hypothesised mean intake ({hyp_mean} milligrams)"
+            null_hyp = f"The actual mean intake of iron is equal to {hyp_mean} milligrams"
+            if alternative == "<":
+                p, conf_text, conf_val = t_test_1sided(rda, hyp_mean, "less", alpha)
+                alt_hyp = f"The actual mean intake of iron is less than {hyp_mean} milligrams"
+            elif alternative == ">":
+                p, conf_text, conf_val = t_test_1sided(rda, hyp_mean, "greater", alpha)
+                alt_hyp = f"The actual mean intake of iron is greater than {hyp_mean} milligrams"
             else:
-                conf_int = stat.t.interval(df=nu,
-                                           confidence=(2*alpha)-1,
-                                           loc=mean,
-                                           scale=sem)
-                conf_text = "Confidence interval for population mean: "
-                conf_val = f"({conf_int[0]:.3f}, {conf_int[1]:.3f})"
-                alt_hyp = f"The actual mean intake of iron is NOT equal to the hypothesised mean intake ({hyp_mean} milligrams)"
-        return null_hyp, alt_hyp, f"{p:.3f} ({p:.1%})", p,conf_text, conf_val, {"display": "inline"}, None
-        # f"{mean:.2f}", f"{t:.3f}",
+                p, conf_text, conf_val = t_test_2sided(rda, hyp_mean, alpha)
+                alt_hyp = f"The actual mean intake of iron is NOT equal to {hyp_mean} milligrams"
+        return null_hyp, alt_hyp, f"{p:.3f} ({p:.1%})", p, conf_text, conf_val, {"display": "inline"}, None
 
+
+# Callback function to give feedback when user decides whether to accept/reject the null hypothesis based on the calculated p-value
 @app.callback(
     Output("conclusion", "children"),
     Input("accept-reject", "value"),
@@ -248,7 +297,7 @@ def accept_or_reject(accept_reject, p, alpha):
         return conclusion
 
 
-
+# Callback function to update hypothesised mean slider based on selected dataset, so that user entered values give sensible results. Also updates data description text
 @app.callback(
     Output("hyp-mean", "min"),
     Output("hyp-mean", "max"),
@@ -262,13 +311,13 @@ def update_data_info(dataset):
         hyp_min = 75
         hyp_max = 100
         hyp_mean = 80
-        marks = {75: {"label": "75%"},
-                 80: {"label": "80%"},
-                 85: {"label": "85%"},
-                 90: {"label": "90%"},
-                 95: {"label": "95%"},
-                 100: {"label": "100%"}}
-        text = "The grades of 30 students who took a test were recorded. The mean grade for previous tests was 80%. Is the mean grade for the observed 30 students the same or different to the mean for previous tests?"
+        marks = {75: {"label": "75"},
+                 80: {"label": "80"},
+                 85: {"label": "85"},
+                 90: {"label": "90"},
+                 95: {"label": "95"},
+                 100: {"label": "100"}}
+        text = "The grades of 30 students who took a test were recorded. The mean grade for previous tests was 80. Is the mean grade for the observed 30 students the same or different to the mean for previous tests?"
     elif dataset == "antacid":
         hyp_min = 3
         hyp_max = 17
@@ -315,5 +364,6 @@ def update_data_info(dataset):
 
 
 if __name__ == "__main__":
-    # app.run(debug=False, host="0.0.0.0", port=8080, dev_tools_ui=False)
     app.run(debug=True)
+    # To deploy on Docker, replace app.run(debug=True) with the following:
+    # app.run(debug=False, host="0.0.0.0", port=8080, dev_tools_ui=False)
